@@ -1,0 +1,140 @@
+
+#these are the packages we need for this example - executing this line will install them
+install.packages(c("devtools", "rjson", "bit64", "httr", "plyr", "ggplot2", "doBy", "XML", "base64enc"))
+
+#devtools allows us to install from github
+library(devtools)
+
+#here we install 2 R packages from github
+install_github("geoffjentry/twitteR" , force=TRUE)
+install_github('R-package','quandl' , force=TRUE)
+
+#these are various libraries that we use throughout this example
+library(plyr)
+library(httr)
+library(doBy)
+library(Quandl)
+library(twitteR)
+
+#here mz api keys would go, to run this example zou need to input you keys, and secrets
+api_key <- "w0u2TyUtAga0dPLAc1huwwGYq"
+api_secret <- "sO4kBhyLJEgSB2RaOLIH3qAZbfIjS582vyobM8HVRefLhQMF72"
+access_token <- "709310096-v2FkS6uT5cOFbQklVwiH3oeqKP7Hkw8lWjs7WQz5"
+access_token_secret <- "MGDyKHNeeZFhi9QL6AdkqRLLJtUd9gMjsCyQHxEnL3src"
+
+#here we setup up twitter and provide authentication details, i.e. the keys and their secrets
+setup_twitter_oauth(api_key,api_secret,access_token,access_token_secret)
+
+#here we read in the two dictionaries that have been downloaded - 
+hu.liu.pos = scan('C:/Users/Aswin_sivam/Downloads/positive-words.txt', what='character', comment.char=';')
+hu.liu.neg = scan('C:/Users/Aswin_sivam/Downloads/negative-words.txt', what='character', comment.char=';')
+
+#now we can add some domain-specific terminolgy
+pos.words = c(hu.liu.pos, 'awesome','good','favorite','great','nice','happy','excellent')
+neg.words = c(hu.liu.neg, 'wtf', 'boring', 'douzy', 'hilarious','terrible','fake','glorified','aborted','sad')
+
+#our first function
+score.sentence <- function(sentence, pos.words, neg.words) {
+  #here some basic cleaning
+  sentence = gsub('[[:punct:]]', '', sentence)
+  sentence = gsub('[[:cntrl::]]', '', sentence)
+  sentence = gsub('\\d+', '', sentence)
+  sentence = tolower(sentence)
+  
+  #basic data structure construction
+  word.list = str_split(sentence, '\\s+')
+  words = unlist(word.list)
+  
+  #here we count the number of words that are positive and negative
+  pos.matches = match(words, pos.words)
+  neg.matches = match(words, neg.words)
+  
+  #throw away those that didn't match
+  pos.matches = !is.na(pos.matches)
+  neg.matches = !is.na(neg.matches)
+  
+  #compute the sentiment score
+  score = sum(pos.matches) - sum(neg.matches)
+  
+  return(score)
+}
+
+#our second function that takes an array of sentences and sentiment analyses them
+score.sentiment <- function(sentences, pos.words, neg.words) {
+  require(plyr)
+  require(stringr)
+  
+  #here any sentence/tweet that causes an error is given a sentiment score of 0 (neutral)
+  scores = laply(sentences, function(sentence, pos.words, neg.words) {
+    tryCatch(score.sentence(sentence, pos.words, neg.words ), error=function(e) 0)
+  }, pos.words, neg.words)
+  
+  #now we construct a data frame
+  scores.df = data.frame(score=scores, text=sentences)
+  
+  return(scores.df)
+}
+
+#our third function, that communicates with twitter and then scores each of the tweets returned
+collect.and.score <- function (venkat, Brand, later, pos.words, neg.words) {
+  
+  
+  tweets = searchTwitter(venkat, n=1500, lang="en", since=NULL, retryOnRateLimit=10)
+  text = laply(tweets, function(t) t$getText())
+  
+  score = score.sentiment(text, pos.words, neg.words)
+  score$Player = Player
+  score$later = later
+  
+  return (score)  
+}
+
+
+#here we invoke the function above for each of our players
+ronaldo.scores = collect.and.score("@Cristiano","cristiano", "cr7", pos.words, neg.words)
+print(ronaldo.scores)
+View(ronaldo.scores)
+
+messi.scores = collect.and.score("@messi10stats", "messi", "me", pos.words, neg.words)
+print(messi.scores)
+View(messi.scores)
+
+manuel.scores = collect.and.score("@Manuel_Neuer", "manuel", "man",pos.words, neg.words)
+print(manuel.scores)
+View(manuel.scores)
+
+edenhazard.scores = collect.and.score("@hazardeden10", "eden hazard", "eden", pos.words, neg.words)
+print(edenhazard.scores)
+View(edenhazard.scores)
+
+zlantan.scores = collect.and.score("@Ibra_official", "zlantan ibramovic", "zla", pos.words, neg.words)
+print(zlantan.scores)
+View(zlantan.scores)
+
+
+
+# getout.scores = collect.and.score("@getout", "getout", "getout", pos.words, neg.words)
+#we combine all data frames into 1
+all.scores = rbind(ronaldo.scores,messi.scores,manuel.scores,edenhazard.scores,zlantan.scores)
+all.scores
+View(all.scores)
+write.csv(all.scores,file='twitter sentimenttop 5.csv')
+getwd()
+
+#skim only the most positive or negative tweets to throw away noise near 0
+all.scores$very.pos = as.numeric( all.scores$score >= 2)
+all.scores$very.neg = as.numeric( all.scores$score <= -2)
+
+#now we construct the twitter data frame and simultaneously compute the pos/neg sentiment scores for each airline
+twitter.df = ddply(all.scores,c('text', 'later'), summarise, pos.count = sum (very.pos), neg.count = sum(very.neg))
+
+#and here the general sentiment 
+twitter.df$all.count = twitter.df$pos.count + twitter.df$neg.count
+
+#now in order to be able to compare data sets we normalise the sentiment score to be a percentage
+twitter.df$score = round (100 * twitter.df$pos.count / twitter.df$all.count)
+
+#and to help understand our data, order by our now normalised score
+orderBy(~-score, twitter.df)
+write.csv(orderBy(~-score, twitter.df),file='aswin.csv')
+getwd()

@@ -1,0 +1,47 @@
+USE Football;
+
+CREATE TABLE DimNationality
+(
+Nationality_ID INT IDENTITY(0,1) PRIMARY KEY,
+Nationality NVARCHAR(100)
+)
+
+CREATE TABLE DimNational_Position
+(
+National_Position_ID INT IDENTITY(0,1) PRIMARY KEY,
+National_Position NVARCHAR(100)
+)
+
+CREATE TABLE DimClub
+(
+Club_ID INT IDENTITY(0,1) PRIMARY KEY,
+Club NVARCHAR(100)
+)
+
+CREATE TABLE DimClub_Position
+(
+Club_Position_ID INT IDENTITY(0,1) PRIMARY KEY,
+Club_Position NVARCHAR(100)
+)
+
+CREATE TABLE DimWork_Rate
+(
+Work_Rate_ID INT IDENTITY(0,1) PRIMARY KEY,
+Work_Rate NVARCHAR(100)
+)
+ 
+ 
+CREATE TABLE FactFootball
+(
+Name NVARCHAR(100),
+Nationality_ID INT FOREIGN KEY REFERENCES dbo.DimNationality(Nationality_ID),
+National_Position_ID INT FOREIGN KEY REFERENCES dbo.DimNational_Position(National_Position_ID),   
+Club_ID INT FOREIGN KEY REFERENCES dbo.DimClub(Club_ID),
+Club_Position_ID INT FOREIGN KEY REFERENCES dbo.DimClub_Position(Club_Position_ID),
+Work_Rate_ID INT FOREIGN KEY REFERENCES dbo.DimWork_Rate(Work_Rate_ID),
+Rating INT,
+Player_Weight INT,
+Player_Height INT,
+Player_Age INT,
+Twitter_Rating INT
+)

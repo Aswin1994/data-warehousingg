@@ -1,0 +1,7 @@
+Use Football;
+DELETE FROM dbo.FactFootball;
+DELETE FROM dbo.DimClub;
+DELETE FROM dbo.DimClub_Position;
+DELETE FROM dbo.DimNational_Position;
+DELETE FROM dbo.DimNationality;
+DELETE FROM dbo.DimWork_Rate;
